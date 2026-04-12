@@ -3,6 +3,11 @@
   hosts: proxmox_nodes
   gather_facts: false
 
+  vars_prompt:
+    - name: proxmox_password
+      prompt: "Proxmox root-Passwort"
+      private: true
+
   pre_tasks:
     - name: Gather minimal facts
       ansible.builtin.setup:
