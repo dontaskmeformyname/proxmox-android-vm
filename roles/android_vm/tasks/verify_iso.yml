@@ -1,0 +1,18 @@
+---
+- name: Prüfen ob ISO auf dem Node vorhanden ist
+  ansible.builtin.stat:
+    path: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+  register: iso_stat
+
+- name: Abbrechen wenn ISO fehlt
+  ansible.builtin.fail:
+    msg: >
+      ISO '{{ blissos_iso_filename }}' wurde nicht gefunden in '{{ vm_iso_storage_path }}'.
+      Bitte die ISO manuell herunterladen und in den ISO-Storage legen:
+      https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/Gapps/Generic/
+      Danach 'blissos_iso_filename' in hosts.yml entsprechend setzen.
+  when: not iso_stat.stat.exists
+
+- name: ISO gefunden
+  ansible.builtin.debug:
+    msg: "ISO gefunden: {{ vm_iso_storage_path }}/{{ blissos_iso_filename }} ({{ iso_stat.stat.size | filesizeformat }})"

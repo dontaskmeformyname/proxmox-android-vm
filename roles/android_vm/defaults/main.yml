@@ -34,12 +34,11 @@ vm_gateway: ""            # z.B. "192.168.1.1"     – nur bei static
 vm_dns: ""                # z.B. "192.168.1.1"     – nur bei static
 
 # -------------------------------------------------------
-# Bliss OS ISO
-# Checksumme: https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/FOSS/Generic/
+# Bliss OS ISO (manuell herunterladen)
+# Download: https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/Gapps/Generic/
+# ISO in den ISO-Storage des Proxmox Node legen (z.B. /var/lib/vz/template/iso/)
 # -------------------------------------------------------
-blissos_iso_url: "https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/FOSS/Generic/Bliss-v16.9.7-x86_64-OFFICIAL-foss-20241011.iso/download"
-blissos_iso_sha256: ""   # PFLICHT: SHA256-Checksumme in hosts.yml setzen
-blissos_iso_filename: "blissos-v16-original.iso"
+blissos_iso_filename: "Bliss-v16.9.7-x86_64-OFFICIAL-gapps-20241011.iso"  # Dateiname der ISO auf dem Node
 blissos_iso_patched_filename: "blissos-v16-pixel1-patched.iso"
 
 # -------------------------------------------------------

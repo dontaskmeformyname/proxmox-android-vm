@@ -9,9 +9,6 @@ all:
           # -------------------------------------------------------
           ansible_host: 192.168.1.10
           ansible_user: root
-          # ansible_password: !vault |
-          #   $ANSIBLE_VAULT;1.1;AES256
-          #   ...
 
           # -------------------------------------------------------
           # Proxmox API
@@ -41,10 +38,10 @@ all:
 
           # -------------------------------------------------------
           # Bliss OS ISO
-          # SHA256 unter: https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/FOSS/Generic/
+          # ISO manuell herunterladen und in den ISO-Storage legen:
+          # https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/Gapps/Generic/
           # -------------------------------------------------------
-          blissos_iso_url: "https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/FOSS/Generic/Bliss-v16.9.7-x86_64-OFFICIAL-foss-20241011.iso/download"
-          blissos_iso_sha256: ""  # PFLICHT: SHA256-Checksumme hier eintragen
+          blissos_iso_filename: "Bliss-v16.9.7-x86_64-OFFICIAL-gapps-20241011.iso"
 
           # -------------------------------------------------------
           # Netzwerk
