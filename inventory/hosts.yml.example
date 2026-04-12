@@ -37,7 +37,14 @@ all:
           # ISO / Template Storage
           # -------------------------------------------------------
           vm_iso_storage: "local"
-          # vm_iso_storage_path wird automatisch via pvesm ermittelt
+          # vm_iso_storage_path wird automatisch via pvesh+jq ermittelt
+
+          # -------------------------------------------------------
+          # Bliss OS ISO
+          # SHA256 unter: https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/FOSS/Generic/
+          # -------------------------------------------------------
+          blissos_iso_url: "https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/FOSS/Generic/Bliss-v16.9.7-x86_64-OFFICIAL-foss-20241011.iso/download"
+          blissos_iso_sha256: ""  # PFLICHT: SHA256-Checksumme hier eintragen
 
           # -------------------------------------------------------
           # Netzwerk

@@ -1,23 +1,69 @@
 ---
+- name: Abbrechen wenn keine SHA256-Checksumme gesetzt
+  ansible.builtin.fail:
+    msg: >
+      'blissos_iso_sha256' ist nicht gesetzt.
+      Bitte die SHA256-Checksumme des ISO in hosts.yml eintragen.
+      Checksummen: https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/FOSS/Generic/
+  when: blissos_iso_sha256 | trim == ''
+
 - name: Prüfen ob Original-ISO bereits vorhanden
   ansible.builtin.stat:
     path: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
   register: iso_stat
 
-- name: Bliss OS ISO herunterladen (falls nicht vorhanden)
-  ansible.builtin.get_url:
-    url: "{{ blissos_iso_url }}"
-    dest: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
-    mode: '0644'
-    timeout: 3600
+- name: Bliss OS ISO herunterladen via wget
+  ansible.builtin.command:
+    cmd: >-
+      wget
+      --progress=dot:giga
+      --timeout=3600
+      --tries=3
+      -O "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+      "{{ blissos_iso_url }}"
   when: not iso_stat.stat.exists
+  register: wget_result
+  changed_when: wget_result.rc == 0
 
-- name: Integrität prüfen – ISO existiert nach Download
+- name: Prüfen ob ISO nach Download vorhanden ist
   ansible.builtin.stat:
     path: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
   register: iso_stat_post
 
-- name: Abbrechen wenn ISO fehlt
+- name: Abbrechen wenn ISO nach Download fehlt
   ansible.builtin.fail:
     msg: "ISO wurde nicht korrekt heruntergeladen: '{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}'"
   when: not iso_stat_post.stat.exists
+
+- name: SHA256-Checksumme berechnen
+  ansible.builtin.command:
+    cmd: "sha256sum {{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+  register: sha256_result
+  changed_when: false
+
+- name: Berechnete Checksumme extrahieren
+  ansible.builtin.set_fact:
+    iso_sha256_actual: "{{ sha256_result.stdout.split()[0] }}"
+
+- name: Checksumme anzeigen
+  ansible.builtin.debug:
+    msg: "SHA256 erwartet: {{ blissos_iso_sha256 }} | berechnet: {{ iso_sha256_actual }}"
+
+- name: Abbrechen bei SHA256-Mismatch und ISO löschen
+  ansible.builtin.fail:
+    msg: >
+      SHA256-Checksumme stimmt nicht überein!
+      Erwartet:   {{ blissos_iso_sha256 }}
+      Berechnet:  {{ iso_sha256_actual }}
+      Die heruntergeladene Datei wurde gelöscht. Bitte erneut ausführen.
+  when: iso_sha256_actual != blissos_iso_sha256
+
+- name: Defekte ISO löschen bei Mismatch
+  ansible.builtin.file:
+    path: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+    state: absent
+  when: iso_sha256_actual != blissos_iso_sha256
+
+- name: ISO-Download erfolgreich bestätigen
+  ansible.builtin.debug:
+    msg: "ISO erfolgreich heruntergeladen und verifiziert: {{ blissos_iso_filename }}"
