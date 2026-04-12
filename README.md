@@ -2,7 +2,7 @@
 
 Ansible Playbook zur automatisierten Erstellung einer Android-VM auf einem Proxmox VE Node.
 
-Die VM basiert auf **Bliss OS 16.x** und gibt sich gegenüber Google-Diensten als **Google Pixel 1 (sailfish, Android 10)** aus.
+Die VM basiert auf **Bliss OS 16.x** und gibt sich gegenüber Google-Diensten als **Google Pixel 1 (sailfish, Android 10)** aus. Primärer Anwendungsfall: Syncthing-Synchronisation von Fotos → Google Fotos (unbegrenzter Original-Speicher via Pixel-1-Berechtigung).
 
 ---
 
@@ -10,9 +10,9 @@ Die VM basiert auf **Bliss OS 16.x** und gibt sich gegenüber Google-Diensten al
 
 ### Auf dem Ansible-Host
 - Ansible >= 2.14
-- Community General Collection:
+- `community.proxmox` Collection:
   ```bash
-  ansible-galaxy collection install community.general
+  ansible-galaxy collection install community.proxmox
   ```
 - SSH-Zugang zum Proxmox Node als `root`
 
@@ -32,7 +32,7 @@ Alle Variablen können in der Inventory-Datei oder per `-e` auf der CLI übersch
 | `proxmox_host` | – | IP/Hostname des PVE Node |
 | `proxmox_node` | `pve` | Node-Name in der PVE-Weboberfläche |
 | `proxmox_user` | `root@pam` | API-Benutzer |
-| `proxmox_password` | – | Passwort (empfohlen: ansible-vault) |
+| `proxmox_password` | *(Prompt)* | Wird bei Ausführung abgefragt |
 | `vm_name` | `android-pixel` | VM-Name in Proxmox |
 | `vm_hostname` | `pixel1-android` | Hostname/Netzwerkname der VM |
 | `vm_cores` | `2` | Anzahl vCPUs |
@@ -62,24 +62,9 @@ cp inventory/hosts.yml.example inventory/hosts.yml
 
 ## Ausführung
 
-### Mit Passwort-Prompt (empfohlen)
+### Standard (Passwort wird interaktiv abgefragt)
 ```bash
-ansible-playbook playbook.yml -i inventory/hosts.yml -k
-```
-
-### Mit ansible-vault (Passwort verschlüsselt)
-```bash
-ansible-vault encrypt_string 'deinPasswort' --name 'proxmox_password'
-# Ausgabe in hosts.yml einfügen, dann:
-ansible-playbook playbook.yml -i inventory/hosts.yml --ask-vault-pass
-```
-
-### Einzelnen Host per CLI angeben
-```bash
-ansible-playbook playbook.yml -i inventory/hosts.yml \
-  -e proxmox_host=192.168.1.10 \
-  -e proxmox_password=secret \
-  -k
+ansible-playbook playbook.yml -i inventory/hosts.yml
 ```
 
 ### Statische IP-Konfiguration
@@ -88,8 +73,7 @@ ansible-playbook playbook.yml -i inventory/hosts.yml \
   -e vm_network_mode=static \
   -e vm_ip=192.168.1.50/24 \
   -e vm_gateway=192.168.1.1 \
-  -e vm_dns=192.168.1.1 \
-  -k
+  -e vm_dns=192.168.1.1
 ```
 
 ---
@@ -114,4 +98,4 @@ ansible-playbook playbook.yml -i inventory/hosts.yml \
 
 - Das Device-Spoofing (Pixel 1 Fingerprint) ist bereits im gepatchten ISO enthalten – keine manuellen ADB-Schritte nach der Installation nötig.
 - Die VM-ID wird automatisch als nächste freie ID von Proxmox vergeben.
-- Das Passwort sollte in produktiven Umgebungen immer via `ansible-vault` verschlüsselt werden.
+- Das Passwort wird bei jeder Ausführung interaktiv abgefragt und nie gespeichert.
