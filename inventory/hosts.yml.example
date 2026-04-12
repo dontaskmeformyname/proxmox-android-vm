@@ -1,0 +1,50 @@
+---
+all:
+  children:
+    proxmox_nodes:
+      hosts:
+        pve-node:
+          # -------------------------------------------------------
+          # Verbindung
+          # -------------------------------------------------------
+          ansible_host: 192.168.1.10
+          ansible_user: root
+          # ansible_password: !vault |
+          #   $ANSIBLE_VAULT;1.1;AES256
+          #   ...
+
+          # -------------------------------------------------------
+          # Proxmox API
+          # -------------------------------------------------------
+          proxmox_host: "192.168.1.10"
+          proxmox_node: "pve"
+          proxmox_user: "root@pam"
+          proxmox_password: "changeme"  # Empfehlung: ansible-vault verwenden
+
+          # -------------------------------------------------------
+          # VM-Konfiguration
+          # -------------------------------------------------------
+          vm_name: "android-pixel"
+          vm_hostname: "pixel1-android"
+          vm_cores: 2
+          vm_memory: 8192
+          vm_disk_size: "128G"
+          vm_storage: "data"
+          vm_bridge: "vmbr0"
+          vm_start_after_create: true
+
+          # -------------------------------------------------------
+          # ISO / Template Storage
+          # -------------------------------------------------------
+          vm_iso_storage: "local"
+          # vm_iso_storage_path wird automatisch via pvesm ermittelt
+
+          # -------------------------------------------------------
+          # Netzwerk
+          # -------------------------------------------------------
+          vm_network_mode: "dhcp"  # "dhcp" oder "static"
+
+          # Nur bei vm_network_mode: static:
+          # vm_ip: "192.168.1.50/24"
+          # vm_gateway: "192.168.1.1"
+          # vm_dns: "192.168.1.1"

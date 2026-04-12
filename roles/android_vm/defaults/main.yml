@@ -1,0 +1,53 @@
+---
+# -------------------------------------------------------
+# Proxmox API
+# -------------------------------------------------------
+proxmox_host: ""
+proxmox_node: "pve"
+proxmox_user: "root@pam"
+proxmox_password: ""
+
+# -------------------------------------------------------
+# VM-Konfiguration
+# -------------------------------------------------------
+vm_name: "android-pixel"
+vm_hostname: "pixel1-android"
+vm_cores: 2
+vm_memory: 8192        # MB
+vm_disk_size: "128G"
+vm_storage: "data"     # Proxmox Storage-Name für die VM-Disk
+vm_bridge: "vmbr0"     # Netzwerk-Bridge
+vm_start_after_create: true
+
+# -------------------------------------------------------
+# ISO / Template Storage
+# -------------------------------------------------------
+vm_iso_storage: "local"   # Proxmox Storage-Name für ISO-Downloads
+# vm_iso_storage_path wird zur Laufzeit via pvesm ermittelt
+
+# -------------------------------------------------------
+# Netzwerk der VM
+# -------------------------------------------------------
+vm_network_mode: "dhcp"   # "dhcp" oder "static"
+vm_ip: ""                 # z.B. "192.168.1.50/24" – nur bei static
+vm_gateway: ""            # z.B. "192.168.1.1"     – nur bei static
+vm_dns: ""                # z.B. "192.168.1.1"     – nur bei static
+
+# -------------------------------------------------------
+# Bliss OS ISO
+# -------------------------------------------------------
+blissos_iso_url: "https://sourceforge.net/projects/blissos-x86/files/Official/bleeding_edge/Generic%20builds%20-%20Stable/16/Bliss-v16.9.7-x86_64-OFFICIAL-foss-20240923.iso"
+blissos_iso_filename: "blissos-v16-original.iso"
+blissos_iso_patched_filename: "blissos-v16-pixel1-patched.iso"
+
+# -------------------------------------------------------
+# Pixel 1 (sailfish) Device-Fingerprint
+# -------------------------------------------------------
+pixel1_product_brand: "google"
+pixel1_product_device: "sailfish"
+pixel1_product_manufacturer: "Google"
+pixel1_product_model: "Pixel"
+pixel1_product_name: "sailfish"
+pixel1_build_fingerprint: "google/sailfish/sailfish:10/QP1A.191005.007.A3/5972272:user/release-keys"
+pixel1_build_product: "sailfish"
+pixel1_build_description: "sailfish-user 10 QP1A.191005.007.A3 5972272 release-keys"

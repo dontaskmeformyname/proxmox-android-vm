@@ -1,0 +1,57 @@
+---
+- name: Nächste freie VM-ID ermitteln
+  ansible.builtin.command: pvesh get /cluster/nextid
+  register: next_vmid_raw
+  changed_when: false
+
+- name: VM-ID als Fact setzen
+  ansible.builtin.set_fact:
+    vm_id: "{{ next_vmid_raw.stdout | trim }}"
+
+- name: VM-ID anzeigen
+  ansible.builtin.debug:
+    msg: "Erstelle VM mit ID: {{ vm_id }}, Name: {{ vm_name }}"
+
+- name: VM erstellen
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_host }}"
+    api_user: "{{ proxmox_user }}"
+    api_password: "{{ proxmox_password }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vm_id }}"
+    name: "{{ vm_name }}"
+    # CPU
+    cores: "{{ vm_cores }}"
+    cpu: host
+    # RAM
+    memory: "{{ vm_memory }}"
+    # Disk
+    virtio:
+      virtio0: "{{ vm_storage }}:{{ vm_disk_size | regex_replace('G', '') }},format=qcow2"
+    # ISO
+    ide:
+      ide2: "{{ vm_iso_storage }}:iso/{{ blissos_iso_patched_filename }},media=cdrom"
+    # Netzwerk
+    net:
+      net0: "virtio,bridge={{ vm_bridge }}"
+    # Boot
+    boot: "order=ide2;virtio0"
+    bios: ovmf
+    efidisk0:
+      storage: "{{ vm_storage }}"
+      format: qcow2
+      efitype: 4m
+      pre_enrolled_keys: false
+    # Sonstiges
+    ostype: l26
+    scsihw: virtio-scsi-pci
+    tablet: true
+    vga: std
+    agent: enabled=1
+    description: "Bliss OS / Android VM – emuliert Google Pixel 1 (sailfish)\nErstellt via Ansible am {{ ansible_date_time.date | default('unbekannt') }}"
+    state: present
+  register: vm_create_result
+
+- name: VM-Erstellungs-Ergebnis anzeigen
+  ansible.builtin.debug:
+    msg: "VM '{{ vm_name }}' (ID: {{ vm_id }}) erfolgreich erstellt."

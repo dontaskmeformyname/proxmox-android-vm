@@ -1,0 +1,23 @@
+---
+- name: Prüfen ob Original-ISO bereits vorhanden
+  ansible.builtin.stat:
+    path: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+  register: iso_stat
+
+- name: Bliss OS ISO herunterladen (falls nicht vorhanden)
+  ansible.builtin.get_url:
+    url: "{{ blissos_iso_url }}"
+    dest: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+    mode: '0644'
+    timeout: 3600
+  when: not iso_stat.stat.exists
+
+- name: Integrität prüfen – ISO existiert nach Download
+  ansible.builtin.stat:
+    path: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+  register: iso_stat_post
+
+- name: Abbrechen wenn ISO fehlt
+  ansible.builtin.fail:
+    msg: "ISO wurde nicht korrekt heruntergeladen: '{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}'"
+  when: not iso_stat_post.stat.exists

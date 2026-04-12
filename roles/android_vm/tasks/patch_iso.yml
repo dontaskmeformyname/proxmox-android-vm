@@ -1,0 +1,100 @@
+---
+- name: Prüfen ob gepatchtes ISO bereits vorhanden
+  ansible.builtin.stat:
+    path: "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
+  register: patched_iso_stat
+
+- name: Original-ISO kopieren für Patching
+  ansible.builtin.copy:
+    src: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+    dest: "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
+    remote_src: true
+    mode: '0644'
+  when: not patched_iso_stat.stat.exists
+
+- name: build.prop Patch-Skript erstellen
+  ansible.builtin.copy:
+    dest: /tmp/patch_buildprop.sh
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      PROPS="$1"
+
+      patch_prop() {
+        local key="$1"
+        local val="$2"
+        if grep -q "^${key}=" "${PROPS}"; then
+          sed -i "s|^${key}=.*|${key}=${val}|" "${PROPS}"
+        else
+          echo "${key}=${val}" >> "${PROPS}"
+        fi
+      }
+
+      patch_prop "ro.product.brand"          "{{ pixel1_product_brand }}"
+      patch_prop "ro.product.device"         "{{ pixel1_product_device }}"
+      patch_prop "ro.product.manufacturer"   "{{ pixel1_product_manufacturer }}"
+      patch_prop "ro.product.model"          "{{ pixel1_product_model }}"
+      patch_prop "ro.product.name"           "{{ pixel1_product_name }}"
+      patch_prop "ro.build.fingerprint"      "{{ pixel1_build_fingerprint }}"
+      patch_prop "ro.build.product"          "{{ pixel1_build_product }}"
+      patch_prop "ro.build.description"      "{{ pixel1_build_description }}"
+      patch_prop "ro.bootimage.build.fingerprint" "{{ pixel1_build_fingerprint }}"
+      patch_prop "ro.system.build.fingerprint"    "{{ pixel1_build_fingerprint }}"
+      patch_prop "ro.vendor.build.fingerprint"    "{{ pixel1_build_fingerprint }}"
+
+      echo "build.prop erfolgreich gepatcht."
+
+- name: Netzwerk-Konfigurationsskript erstellen
+  ansible.builtin.copy:
+    dest: /tmp/patch_network.sh
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      PROPS="$1"
+
+      patch_prop() {
+        local key="$1"
+        local val="$2"
+        if grep -q "^${key}=" "${PROPS}"; then
+          sed -i "s|^${key}=.*|${key}=${val}|" "${PROPS}"
+        else
+          echo "${key}=${val}" >> "${PROPS}"
+        fi
+      }
+
+      {% if vm_network_mode == 'static' %}
+      patch_prop "net.eth0.ip"      "{{ vm_ip | regex_replace('/.*', '') }}"
+      patch_prop "net.eth0.mask"    "{{ vm_ip | ansible.utils.ipaddr('prefix') }}"
+      patch_prop "net.eth0.gw"      "{{ vm_gateway }}"
+      patch_prop "net.dns1"         "{{ vm_dns }}"
+      patch_prop "dhcp.interface"   ""
+      {% else %}
+      patch_prop "dhcp.interface"   "eth0"
+      {% endif %}
+
+      echo "Netzwerk-Konfiguration gepatcht (Modus: {{ vm_network_mode }})."
+
+- name: ISO mit virt-customize patchen (build.prop + Netzwerk)
+  ansible.builtin.command: >
+    virt-customize
+    -a "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
+    --run /tmp/patch_buildprop.sh:/system/build.prop
+    --run /tmp/patch_network.sh:/system/build.prop
+  register: virt_customize_result
+  changed_when: true
+  when: not patched_iso_stat.stat.exists
+
+- name: virt-customize Ausgabe anzeigen
+  ansible.builtin.debug:
+    msg: "{{ virt_customize_result.stdout_lines | default(['(kein Output)']) }}"
+  when: not patched_iso_stat.stat.exists
+
+- name: Temporäre Skripte aufräumen
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/patch_buildprop.sh
+    - /tmp/patch_network.sh

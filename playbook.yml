@@ -1,0 +1,14 @@
+---
+- name: Deploy Android VM (Bliss OS / Pixel 1) on Proxmox VE
+  hosts: proxmox_nodes
+  gather_facts: false
+
+  pre_tasks:
+    - name: Gather minimal facts
+      ansible.builtin.setup:
+        gather_subset:
+          - '!all'
+          - '!min'
+
+  roles:
+    - android_vm

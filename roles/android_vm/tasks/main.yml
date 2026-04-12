@@ -1,0 +1,22 @@
+---
+- name: Proxmox Node verifizieren
+  ansible.builtin.import_tasks: verify_proxmox.yml
+
+- name: Abhängigkeiten installieren
+  ansible.builtin.import_tasks: install_dependencies.yml
+
+- name: ISO Storage-Pfad ermitteln
+  ansible.builtin.import_tasks: resolve_storage_path.yml
+
+- name: Bliss OS ISO herunterladen
+  ansible.builtin.import_tasks: download_iso.yml
+
+- name: ISO mit Pixel-1-Identität patchen
+  ansible.builtin.import_tasks: patch_iso.yml
+
+- name: VM erstellen
+  ansible.builtin.import_tasks: create_vm.yml
+
+- name: VM starten
+  ansible.builtin.import_tasks: start_vm.yml
+  when: vm_start_after_create | bool

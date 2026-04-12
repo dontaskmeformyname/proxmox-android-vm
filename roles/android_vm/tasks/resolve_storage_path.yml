@@ -1,0 +1,24 @@
+---
+- name: ISO Storage-Pfad via pvesm ermitteln
+  ansible.builtin.command: "pvesm path {{ vm_iso_storage }}:iso/"
+  register: pvesm_path_raw
+  changed_when: false
+  failed_when: pvesm_path_raw.rc != 0
+
+- name: Pfad bereinigen (Dateiname entfernen, nur Verzeichnis)
+  ansible.builtin.set_fact:
+    vm_iso_storage_path: "{{ pvesm_path_raw.stdout | trim | regex_replace('/$', '') | regex_replace('/[^/]+$', '') }}"
+
+- name: Prüfen ob Storage-Verzeichnis existiert
+  ansible.builtin.stat:
+    path: "{{ vm_iso_storage_path }}"
+  register: iso_storage_dir
+
+- name: Abbrechen wenn Storage-Verzeichnis nicht existiert
+  ansible.builtin.fail:
+    msg: "ISO Storage-Pfad '{{ vm_iso_storage_path }}' existiert nicht. Bitte 'vm_iso_storage' prüfen."
+  when: not iso_storage_dir.stat.exists
+
+- name: Ermittelten ISO Storage-Pfad anzeigen
+  ansible.builtin.debug:
+    msg: "ISO Storage-Pfad: {{ vm_iso_storage_path }}"

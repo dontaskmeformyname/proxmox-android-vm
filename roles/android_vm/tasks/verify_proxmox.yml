@@ -1,0 +1,39 @@
+---
+- name: Prüfen ob pveversion vorhanden ist
+  ansible.builtin.command: which pveversion
+  register: pveversion_check
+  changed_when: false
+  failed_when: false
+
+- name: Abbrechen wenn kein Proxmox VE Node
+  ansible.builtin.fail:
+    msg: >
+      Der Host '{{ inventory_hostname }}' ist kein Proxmox VE Node.
+      'pveversion' wurde nicht gefunden. Bitte nur gegen PVE Nodes ausführen.
+  when: pveversion_check.rc != 0
+
+- name: pveversion Ausgabe lesen
+  ansible.builtin.command: pveversion
+  register: pveversion_output
+  changed_when: false
+
+- name: Prüfen ob Ausgabe 'pve-manager' enthält
+  ansible.builtin.fail:
+    msg: >
+      Der Host '{{ inventory_hostname }}' scheint kein gültiger Proxmox VE Node zu sein.
+      Ausgabe von pveversion: {{ pveversion_output.stdout }}
+  when: "'pve-manager' not in pveversion_output.stdout"
+
+- name: Prüfen ob pvesh verfügbar ist
+  ansible.builtin.stat:
+    path: /usr/bin/pvesh
+  register: pvesh_stat
+
+- name: Abbrechen wenn pvesh fehlt
+  ansible.builtin.fail:
+    msg: "'/usr/bin/pvesh' wurde nicht gefunden. Ist Proxmox VE korrekt installiert?"
+  when: not pvesh_stat.stat.exists
+
+- name: Proxmox VE Version anzeigen
+  ansible.builtin.debug:
+    msg: "Proxmox VE verifiziert: {{ pveversion_output.stdout }}"

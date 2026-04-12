@@ -1,0 +1,23 @@
+---
+- name: apt-Cache aktualisieren
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Benötigte Pakete installieren
+  ansible.builtin.apt:
+    name:
+      - wget
+      - libguestfs-tools
+      - python3-proxmoxer
+    state: present
+
+- name: Prüfen ob virt-customize verfügbar ist
+  ansible.builtin.command: which virt-customize
+  register: virtcustomize_check
+  changed_when: false
+
+- name: Abbrechen wenn virt-customize fehlt
+  ansible.builtin.fail:
+    msg: "'virt-customize' ist nicht verfügbar, obwohl libguestfs-tools installiert wurde. Bitte manuell prüfen."
+  when: virtcustomize_check.rc != 0
