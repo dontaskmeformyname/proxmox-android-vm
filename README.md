@@ -2,7 +2,7 @@
 
 Ansible Playbook zur automatisierten Erstellung einer Android-VM auf einem Proxmox VE Node.
 
-Die VM basiert auf **Bliss OS 16.x** und gibt sich gegenüber Google-Diensten als **Google Pixel 1 (sailfish, Android 10)** aus. Primärer Anwendungsfall: Syncthing-Synchronisation von Fotos → Google Fotos (unbegrenzter Original-Speicher via Pixel-1-Berechtigung).
+Die VM basiert auf **Bliss OS 16.x** und gibt sich gegenüber Google-Diensten als **Google Pixel 1 (sailfish, Android 10)** aus.
 
 ---
 
