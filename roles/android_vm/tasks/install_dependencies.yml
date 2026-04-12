@@ -4,13 +4,45 @@
     update_cache: true
     cache_valid_time: 3600
 
-- name: Benötigte Pakete installieren
+- name: "Paket installieren: wget"
   ansible.builtin.apt:
-    name:
-      - wget
-      - libguestfs-tools
-      - python3-proxmoxer
+    name: wget
     state: present
+  register: pkg_wget
+
+- name: "Status: wget"
+  ansible.builtin.debug:
+    msg: "wget: {{ 'installiert' if pkg_wget.changed else 'bereits vorhanden' }}"
+
+- name: "Paket installieren: jq"
+  ansible.builtin.apt:
+    name: jq
+    state: present
+  register: pkg_jq
+
+- name: "Status: jq"
+  ansible.builtin.debug:
+    msg: "jq: {{ 'installiert' if pkg_jq.changed else 'bereits vorhanden' }}"
+
+- name: "Paket installieren: libguestfs-tools"
+  ansible.builtin.apt:
+    name: libguestfs-tools
+    state: present
+  register: pkg_libguestfs
+
+- name: "Status: libguestfs-tools"
+  ansible.builtin.debug:
+    msg: "libguestfs-tools: {{ 'installiert' if pkg_libguestfs.changed else 'bereits vorhanden' }}"
+
+- name: "Paket installieren: python3-proxmoxer"
+  ansible.builtin.apt:
+    name: python3-proxmoxer
+    state: present
+  register: pkg_proxmoxer
+
+- name: "Status: python3-proxmoxer"
+  ansible.builtin.debug:
+    msg: "python3-proxmoxer: {{ 'installiert' if pkg_proxmoxer.changed else 'bereits vorhanden' }}"
 
 - name: Prüfen ob virt-customize verfügbar ist
   ansible.builtin.command: which virt-customize

@@ -1,22 +1,26 @@
 ---
-- name: ISO Storage-Pfad via pvesm ermitteln
-  ansible.builtin.command: "pvesm path {{ vm_iso_storage }}:iso/"
-  register: pvesm_path_raw
+- name: ISO Storage-Basispfad via pvesh ermitteln
+  ansible.builtin.shell: >
+    pvesh get /storage --output-format json
+    | jq -r '.[] | select(.storage == "{{ vm_iso_storage }}") | .path'
+  register: pvesh_storage_path_raw
   changed_when: false
-  failed_when: pvesm_path_raw.rc != 0
+  failed_when: pvesh_storage_path_raw.rc != 0 or pvesh_storage_path_raw.stdout | trim == ''
 
-- name: Pfad bereinigen (Dateiname entfernen, nur Verzeichnis)
+- name: ISO Storage-Pfad als Fact setzen
   ansible.builtin.set_fact:
-    vm_iso_storage_path: "{{ pvesm_path_raw.stdout | trim | regex_replace('/$', '') | regex_replace('/[^/]+$', '') }}"
+    vm_iso_storage_path: "{{ pvesh_storage_path_raw.stdout | trim }}/template/iso"
 
-- name: Prüfen ob Storage-Verzeichnis existiert
+- name: Prüfen ob ISO Storage-Verzeichnis existiert
   ansible.builtin.stat:
     path: "{{ vm_iso_storage_path }}"
   register: iso_storage_dir
 
-- name: Abbrechen wenn Storage-Verzeichnis nicht existiert
-  ansible.builtin.fail:
-    msg: "ISO Storage-Pfad '{{ vm_iso_storage_path }}' existiert nicht. Bitte 'vm_iso_storage' prüfen."
+- name: ISO Storage-Verzeichnis anlegen falls nicht vorhanden
+  ansible.builtin.file:
+    path: "{{ vm_iso_storage_path }}"
+    state: directory
+    mode: '0755'
   when: not iso_storage_dir.stat.exists
 
 - name: Ermittelten ISO Storage-Pfad anzeigen
