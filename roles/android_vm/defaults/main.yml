@@ -18,6 +18,11 @@ vm_storage: "data"     # Proxmox Storage-Name für die VM-Disk
 vm_bridge: "vmbr0"     # Netzwerk-Bridge
 vm_start_after_create: true
 
+# Disk-Format abhängig vom Storage-Backend:
+#   raw   → ZFS, LVM, LVM-Thin
+#   qcow2 → Directory-Storage (local, NFS, etc.)
+vm_disk_format: "raw"
+
 # -------------------------------------------------------
 # ISO / Template Storage
 # -------------------------------------------------------
