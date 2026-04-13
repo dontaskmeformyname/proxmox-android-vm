@@ -30,7 +30,7 @@
       virtio0: "{{ vm_storage }}:{{ vm_disk_size | regex_replace('G', '') }},format=qcow2"
     # ISO
     ide:
-      ide2: "{{ vm_iso_storage }}:iso/{{ blissos_iso_patched_filename }},media=cdrom"
+      ide2: "{{ vm_iso_storage }}:iso/{{ blissos_iso_filename }},media=cdrom"
     # Netzwerk
     net:
       net0: "virtio,bridge={{ vm_bridge }}"
@@ -48,7 +48,7 @@
     tablet: true
     vga: std
     agent: enabled=1
-    description: "Bliss OS / Android VM – emuliert Google Pixel 1 (sailfish)\nErstellt via Ansible am {{ ansible_date_time.date | default('unbekannt') }}"
+    description: "Bliss OS / Android VM\nErstellt via Ansible am {{ lookup('pipe', 'date +%Y-%m-%d') }}"
     state: present
   register: vm_create_result
 
