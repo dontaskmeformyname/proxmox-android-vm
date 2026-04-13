@@ -27,7 +27,7 @@
     memory: "{{ vm_memory }}"
     # Disk
     virtio:
-      virtio0: "{{ vm_storage }}:{{ vm_disk_size | regex_replace('G', '') }},format=qcow2"
+      virtio0: "{{ vm_storage }}:{{ vm_disk_size | regex_replace('G', '') }},format={{ vm_disk_format }}"
     # ISO
     ide:
       ide2: "{{ vm_iso_storage }}:iso/{{ blissos_iso_filename }},media=cdrom"
@@ -39,7 +39,7 @@
     bios: ovmf
     efidisk0:
       storage: "{{ vm_storage }}"
-      format: qcow2
+      format: "{{ vm_disk_format }}"
       efitype: 4m
       pre_enrolled_keys: false
     # Sonstiges
