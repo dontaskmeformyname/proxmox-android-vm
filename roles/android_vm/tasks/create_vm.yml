@@ -8,6 +8,39 @@
   ansible.builtin.set_fact:
     vm_id: "{{ next_vmid_raw.stdout | trim }}"
 
+- name: Storage-Typ für '{{ vm_storage }}' ermitteln
+  ansible.builtin.command: >-
+    pvesm status --storage {{ vm_storage }}
+  register: pvesm_status_raw
+  changed_when: false
+
+# pvesm status gibt eine Tabelle aus:
+# Name   Type     Status   Total    Used    Available  %
+# data   zfspool  active   ...
+# Spalte 2 (Index 1) enthält den Typ.
+- name: Storage-Typ als Fact setzen
+  ansible.builtin.set_fact:
+    vm_storage_type: >-
+      {{ pvesm_status_raw.stdout_lines
+         | select('match', '^' + vm_storage + '\\s')
+         | first
+         | split()
+         | list
+         | last(attribute=1) }}
+
+# Disk-Format-Mapping:
+#   zfspool / lvm / lvmthin  -> raw
+#   dir / nfs / cifs / btrfs -> qcow2
+- name: Disk-Format aus Storage-Typ ableiten
+  ansible.builtin.set_fact:
+    vm_disk_format: >-
+      {{ 'raw' if vm_storage_type in ['zfspool', 'lvm', 'lvmthin']
+               else 'qcow2' }}
+
+- name: Ermitteltes Disk-Format anzeigen
+  ansible.builtin.debug:
+    msg: "Storage '{{ vm_storage }}' ist Typ '{{ vm_storage_type }}' → Disk-Format: {{ vm_disk_format }}"
+
 - name: VM-ID anzeigen
   ansible.builtin.debug:
     msg: "Erstelle VM mit ID: {{ vm_id }}, Name: {{ vm_name }}"
