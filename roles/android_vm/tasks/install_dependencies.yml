@@ -9,6 +9,7 @@
     name:
       - jq
       - xorriso
+      - squashfs-tools
       - python3-proxmoxer
     state: present
 
@@ -21,3 +22,13 @@
   ansible.builtin.fail:
     msg: "'xorriso' ist nicht verfügbar, obwohl das Paket installiert wurde. Bitte manuell prüfen."
   when: xorriso_check.rc != 0
+
+- name: Prüfen ob unsquashfs verfügbar ist
+  ansible.builtin.command: which unsquashfs
+  register: unsquashfs_check
+  changed_when: false
+
+- name: Abbrechen wenn unsquashfs fehlt
+  ansible.builtin.fail:
+    msg: "'unsquashfs' ist nicht verfügbar, obwohl squashfs-tools installiert wurde. Bitte manuell prüfen."
+  when: unsquashfs_check.rc != 0
