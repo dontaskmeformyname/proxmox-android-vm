@@ -1,100 +1,129 @@
 ---
+# ---------------------------------------------------------------------------
+# ISO patchen: build.prop mit Pixel-1-Fingerprint überschreiben
+#
+# Strategie: xorriso kann ein Hybrid-ISO direkt lesen/schreiben.
+# Wir extrahieren build.prop, patchen sie lokal auf dem Node
+# und repacken das ISO mit identischer Boot-Geometrie.
+# ---------------------------------------------------------------------------
+
 - name: Prüfen ob gepatchtes ISO bereits vorhanden
   ansible.builtin.stat:
     path: "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
   register: patched_iso_stat
 
-- name: Original-ISO kopieren für Patching
-  ansible.builtin.copy:
-    src: "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
-    dest: "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
-    remote_src: true
-    mode: '0644'
+# --- Ab hier nur ausführen wenn gepatchtes ISO noch nicht existiert ----------
+
+- name: Arbeitsverzeichnis für ISO-Extraktion anlegen
+  ansible.builtin.file:
+    path: /tmp/blissos_patch_workdir
+    state: directory
+    mode: '0755'
   when: not patched_iso_stat.stat.exists
 
-- name: build.prop Patch-Skript erstellen
-  ansible.builtin.copy:
-    dest: /tmp/patch_buildprop.sh
-    mode: '0755'
-    content: |
-      #!/bin/bash
-      set -e
-      PROPS="$1"
-
-      patch_prop() {
-        local key="$1"
-        local val="$2"
-        if grep -q "^${key}=" "${PROPS}"; then
-          sed -i "s|^${key}=.*|${key}=${val}|" "${PROPS}"
-        else
-          echo "${key}=${val}" >> "${PROPS}"
-        fi
-      }
-
-      patch_prop "ro.product.brand"          "{{ pixel1_product_brand }}"
-      patch_prop "ro.product.device"         "{{ pixel1_product_device }}"
-      patch_prop "ro.product.manufacturer"   "{{ pixel1_product_manufacturer }}"
-      patch_prop "ro.product.model"          "{{ pixel1_product_model }}"
-      patch_prop "ro.product.name"           "{{ pixel1_product_name }}"
-      patch_prop "ro.build.fingerprint"      "{{ pixel1_build_fingerprint }}"
-      patch_prop "ro.build.product"          "{{ pixel1_build_product }}"
-      patch_prop "ro.build.description"      "{{ pixel1_build_description }}"
-      patch_prop "ro.bootimage.build.fingerprint" "{{ pixel1_build_fingerprint }}"
-      patch_prop "ro.system.build.fingerprint"    "{{ pixel1_build_fingerprint }}"
-      patch_prop "ro.vendor.build.fingerprint"    "{{ pixel1_build_fingerprint }}"
-
-      echo "build.prop erfolgreich gepatcht."
-
-- name: Netzwerk-Konfigurationsskript erstellen
-  ansible.builtin.copy:
-    dest: /tmp/patch_network.sh
-    mode: '0755'
-    content: |
-      #!/bin/bash
-      set -e
-      PROPS="$1"
-
-      patch_prop() {
-        local key="$1"
-        local val="$2"
-        if grep -q "^${key}=" "${PROPS}"; then
-          sed -i "s|^${key}=.*|${key}=${val}|" "${PROPS}"
-        else
-          echo "${key}=${val}" >> "${PROPS}"
-        fi
-      }
-
-      {% if vm_network_mode == 'static' %}
-      patch_prop "net.eth0.ip"      "{{ vm_ip | regex_replace('/.*', '') }}"
-      patch_prop "net.eth0.mask"    "{{ vm_ip | ansible.utils.ipaddr('prefix') }}"
-      patch_prop "net.eth0.gw"      "{{ vm_gateway }}"
-      patch_prop "net.dns1"         "{{ vm_dns }}"
-      patch_prop "dhcp.interface"   ""
-      {% else %}
-      patch_prop "dhcp.interface"   "eth0"
-      {% endif %}
-
-      echo "Netzwerk-Konfiguration gepatcht (Modus: {{ vm_network_mode }})."
-
-- name: ISO mit virt-customize patchen (build.prop + Netzwerk)
+- name: build.prop aus Original-ISO extrahieren
   ansible.builtin.command: >
-    virt-customize
-    -a "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
-    --run /tmp/patch_buildprop.sh:/system/build.prop
-    --run /tmp/patch_network.sh:/system/build.prop
-  register: virt_customize_result
+    xorriso -osirrox on
+    -indev "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+    -extract /system/build.prop /tmp/blissos_patch_workdir/build.prop
+  args:
+    creates: /tmp/blissos_patch_workdir/build.prop
+  when: not patched_iso_stat.stat.exists
+
+- name: Abbrechen wenn build.prop nicht gefunden
+  ansible.builtin.stat:
+    path: /tmp/blissos_patch_workdir/build.prop
+  register: buildprop_stat
+  when: not patched_iso_stat.stat.exists
+
+- name: Fehler wenn build.prop im ISO fehlt
+  ansible.builtin.fail:
+    msg: >
+      build.prop wurde nicht in /system/build.prop des ISO gefunden.
+      Bitte den ISO-Pfad und die Bliss-OS-Version prüfen.
+  when:
+    - not patched_iso_stat.stat.exists
+    - not buildprop_stat.stat.exists
+
+- name: Pixel-1-Properties in build.prop patchen
+  ansible.builtin.lineinfile:
+    path: /tmp/blissos_patch_workdir/build.prop
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+  loop:
+    - { key: "ro.product.brand",          value: "{{ pixel1_product_brand }}" }
+    - { key: "ro.product.device",         value: "{{ pixel1_product_device }}" }
+    - { key: "ro.product.manufacturer",   value: "{{ pixel1_product_manufacturer }}" }
+    - { key: "ro.product.model",          value: "{{ pixel1_product_model }}" }
+    - { key: "ro.product.name",           value: "{{ pixel1_product_name }}" }
+    - { key: "ro.build.fingerprint",      value: "{{ pixel1_build_fingerprint }}" }
+    - { key: "ro.build.product",          value: "{{ pixel1_build_product }}" }
+    - { key: "ro.build.description",      value: "{{ pixel1_build_description }}" }
+    - { key: "ro.bootimage.build.fingerprint", value: "{{ pixel1_build_fingerprint }}" }
+    - { key: "ro.system.build.fingerprint",    value: "{{ pixel1_build_fingerprint }}" }
+    - { key: "ro.vendor.build.fingerprint",    value: "{{ pixel1_build_fingerprint }}" }
+  when: not patched_iso_stat.stat.exists
+
+- name: Netzwerk-Properties in build.prop patchen (static)
+  ansible.builtin.lineinfile:
+    path: /tmp/blissos_patch_workdir/build.prop
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+  loop:
+    - { key: "net.eth0.ip",    value: "{{ vm_ip | ansible.utils.ipaddr('address') }}" }
+    - { key: "net.eth0.mask",  value: "{{ vm_ip | ansible.utils.ipaddr('prefix') }}" }
+    - { key: "net.eth0.gw",    value: "{{ vm_gateway }}" }
+    - { key: "net.dns1",       value: "{{ vm_dns }}" }
+    - { key: "dhcp.interface", value: "" }
+  when:
+    - not patched_iso_stat.stat.exists
+    - vm_network_mode == 'static'
+
+- name: Netzwerk-Properties in build.prop patchen (dhcp)
+  ansible.builtin.lineinfile:
+    path: /tmp/blissos_patch_workdir/build.prop
+    regexp: "^dhcp.interface="
+    line: "dhcp.interface=eth0"
+    state: present
+  when:
+    - not patched_iso_stat.stat.exists
+    - vm_network_mode == 'dhcp'
+
+- name: Gepatchte build.prop in neues ISO schreiben (xorriso)
+  ansible.builtin.command: >
+    xorriso
+    -indev "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+    -outdev "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
+    -map /tmp/blissos_patch_workdir/build.prop /system/build.prop
+    -boot_image any replay
+    -commit
+  register: xorriso_result
   changed_when: true
   when: not patched_iso_stat.stat.exists
 
-- name: virt-customize Ausgabe anzeigen
+- name: xorriso Ausgabe anzeigen
   ansible.builtin.debug:
-    msg: "{{ virt_customize_result.stdout_lines | default(['(kein Output)']) }}"
+    msg: "{{ xorriso_result.stdout_lines | default(['(kein Output)']) }}"
   when: not patched_iso_stat.stat.exists
 
-- name: Temporäre Skripte aufräumen
+- name: Arbeitsverzeichnis aufräumen
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /tmp/blissos_patch_workdir
     state: absent
-  loop:
-    - /tmp/patch_buildprop.sh
-    - /tmp/patch_network.sh
+  when: not patched_iso_stat.stat.exists
+
+- name: Gepatchtes ISO verifizieren
+  ansible.builtin.stat:
+    path: "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
+  register: patched_iso_final
+
+- name: Abbrechen wenn gepatchtes ISO fehlt
+  ansible.builtin.fail:
+    msg: "Gepatchtes ISO wurde nicht erstellt: {{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
+  when: not patched_iso_final.stat.exists
+
+- name: Patch abgeschlossen
+  ansible.builtin.debug:
+    msg: "ISO erfolgreich gepatcht: {{ blissos_iso_patched_filename }} ({{ patched_iso_final.stat.size | filesizeformat }})"
