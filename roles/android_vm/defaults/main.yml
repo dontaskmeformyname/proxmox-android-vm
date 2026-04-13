@@ -34,11 +34,12 @@ vm_gateway: ""            # z.B. "192.168.1.1"     – nur bei static
 vm_dns: ""                # z.B. "192.168.1.1"     – nur bei static
 
 # -------------------------------------------------------
-# Bliss OS ISO (manuell herunterladen)
+# Bliss OS ISO
+# ISO manuell herunterladen, prüfen und in den ISO-Storage des Proxmox Node legen.
 # Download: https://sourceforge.net/projects/blissos-x86/files/Official/BlissOS16/Gapps/Generic/
-# ISO in den ISO-Storage des Proxmox Node legen (z.B. /var/lib/vz/template/iso/)
+# Dateinamen hier eintragen:
 # -------------------------------------------------------
-blissos_iso_filename: "Bliss-v16.9.7-x86_64-OFFICIAL-gapps-20241011.iso"  # Dateiname der ISO auf dem Node
+blissos_iso_filename: "Bliss-v16.9.7-x86_64-OFFICIAL-gapps-20241011.iso"
 blissos_iso_patched_filename: "blissos-v16-pixel1-patched.iso"
 
 # -------------------------------------------------------
