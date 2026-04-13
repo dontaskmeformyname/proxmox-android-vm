@@ -120,31 +120,31 @@
     line: "{{ item.key }}={{ item.value }}"
     state: present
   loop:
-    - { key: "ro.product.brand",               value: "{{ pixel1_product_brand }}" }
-    - { key: "ro.product.device",              value: "{{ pixel1_product_device }}" }
-    - { key: "ro.product.manufacturer",        value: "{{ pixel1_product_manufacturer }}" }
-    - { key: "ro.product.model",               value: "{{ pixel1_product_model }}" }
-    - { key: "ro.product.name",                value: "{{ pixel1_product_name }}" }
-    - { key: "ro.build.fingerprint",           value: "{{ pixel1_build_fingerprint }}" }
-    - { key: "ro.build.product",               value: "{{ pixel1_build_product }}" }
-    - { key: "ro.build.description",           value: "{{ pixel1_build_description }}" }
-    - { key: "ro.bootimage.build.fingerprint", value: "{{ pixel1_build_fingerprint }}" }
-    - { key: "ro.system.build.fingerprint",    value: "{{ pixel1_build_fingerprint }}" }
-    - { key: "ro.vendor.build.fingerprint",    value: "{{ pixel1_build_fingerprint }}" }
+    - { key: 'ro.product.brand',               value: "{{ pixel1_product_brand }}" }
+    - { key: 'ro.product.device',              value: "{{ pixel1_product_device }}" }
+    - { key: 'ro.product.manufacturer',        value: "{{ pixel1_product_manufacturer }}" }
+    - { key: 'ro.product.model',               value: "{{ pixel1_product_model }}" }
+    - { key: 'ro.product.name',                value: "{{ pixel1_product_name }}" }
+    - { key: 'ro.build.fingerprint',           value: "{{ pixel1_build_fingerprint }}" }
+    - { key: 'ro.build.product',               value: "{{ pixel1_build_product }}" }
+    - { key: 'ro.build.description',           value: "{{ pixel1_build_description }}" }
+    - { key: 'ro.bootimage.build.fingerprint', value: "{{ pixel1_build_fingerprint }}" }
+    - { key: 'ro.system.build.fingerprint',    value: "{{ pixel1_build_fingerprint }}" }
+    - { key: 'ro.vendor.build.fingerprint',    value: "{{ pixel1_build_fingerprint }}" }
   when: not patched_iso_stat.stat.exists
 
 - name: Netzwerk-Properties patchen (static)
   ansible.builtin.lineinfile:
     path: "{{ buildprop_path }}"
-    regexp: "^{{ item.key }}="
+    regexp: '^{{ item.key }}='
     line: "{{ item.key }}={{ item.value }}"
     state: present
   loop:
-    - { key: "net.eth0.ip",    value: "{{ vm_ip | ansible.utils.ipaddr('address') }}" }
-    - { key: "net.eth0.mask",  value: "{{ vm_ip | ansible.utils.ipaddr('prefix') }}" }
-    - { key: "net.eth0.gw",    value: "{{ vm_gateway }}" }
-    - { key: "net.dns1",       value: "{{ vm_dns }}" }
-    - { key: "dhcp.interface", value: "" }
+    - { key: 'net.eth0.ip',    value: "{{ vm_ip | ansible.utils.ipaddr('address') }}" }
+    - { key: 'net.eth0.mask',  value: "{{ vm_ip | ansible.utils.ipaddr('prefix') }}" }
+    - { key: 'net.eth0.gw',    value: "{{ vm_gateway }}" }
+    - { key: 'net.dns1',       value: "{{ vm_dns }}" }
+    - { key: 'dhcp.interface', value: '' }
   when:
     - not patched_iso_stat.stat.exists
     - vm_network_mode == 'static'
@@ -152,8 +152,8 @@
 - name: Netzwerk-Properties patchen (dhcp)
   ansible.builtin.lineinfile:
     path: "{{ buildprop_path }}"
-    regexp: "^dhcp\.interface="
-    line: "dhcp.interface=eth0"
+    regexp: '^dhcp\.interface='
+    line: 'dhcp.interface=eth0'
     state: present
   when:
     - not patched_iso_stat.stat.exists
