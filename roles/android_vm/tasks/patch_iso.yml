@@ -2,9 +2,13 @@
 # ---------------------------------------------------------------------------
 # ISO patchen: build.prop mit Pixel-1-Fingerprint überschreiben
 #
-# Strategie: xorriso kann ein Hybrid-ISO direkt lesen/schreiben.
-# Wir extrahieren build.prop, patchen sie lokal auf dem Node
-# und repacken das ISO mit identischer Boot-Geometrie.
+# Strategie:
+#   Bliss OS x86 speichert build.prop NICHT direkt im ISO-9660-Baum,
+#   sondern in einem squashfs-Container (system.sfs oder system.img).
+#   Ablauf:
+#     1. ISO mit xorriso auflisten -> squashfs-Datei finden
+#     2. squashfs extrahieren -> build.prop patchen
+#     3. Neues squashfs bauen -> in neues ISO einbetten
 # ---------------------------------------------------------------------------
 
 - name: Prüfen ob gepatchtes ISO bereits vorhanden
@@ -12,62 +16,126 @@
     path: "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
   register: patched_iso_stat
 
-# --- Ab hier nur ausführen wenn gepatchtes ISO noch nicht existiert ----------
+# ---------------------------------------------------------------------------
+# Ab hier nur ausführen wenn gepatchtes ISO noch nicht existiert
+# ---------------------------------------------------------------------------
 
-- name: Arbeitsverzeichnis für ISO-Extraktion anlegen
+- name: Arbeitsverzeichnis anlegen
   ansible.builtin.file:
     path: /tmp/blissos_patch_workdir
     state: directory
     mode: '0755'
   when: not patched_iso_stat.stat.exists
 
-- name: build.prop aus Original-ISO extrahieren
+- name: ISO-Dateibaum auflisten
   ansible.builtin.command: >
     xorriso -osirrox on
     -indev "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
-    -extract /system/build.prop /tmp/blissos_patch_workdir/build.prop
+    -find / -type f
+  register: iso_tree
+  changed_when: false
+  failed_when: false
+  when: not patched_iso_stat.stat.exists
+
+- name: ISO-Dateibaum anzeigen (zur Diagnose)
+  ansible.builtin.debug:
+    msg: "{{ iso_tree.stderr_lines | default([]) + iso_tree.stdout_lines | default([]) }}"
+  when: not patched_iso_stat.stat.exists
+
+- name: squashfs-Containerdatei im ISO ermitteln
+  ansible.builtin.set_fact:
+    iso_squashfs_path: >-
+      {{ (iso_tree.stderr_lines | default([])
+          + iso_tree.stdout_lines | default([]))
+         | select('search', '(?i)(system\.sfs|system\.img|android_system\.sfs)')
+         | map('trim')
+         | first | default('') }}
+  when: not patched_iso_stat.stat.exists
+
+- name: Abbrechen wenn kein squashfs gefunden
+  ansible.builtin.fail:
+    msg: >
+      Kein squashfs-Container (system.sfs / system.img) im ISO gefunden.
+      Gefundene Dateien:
+      {{ (iso_tree.stderr_lines | default([]) + iso_tree.stdout_lines | default([]))
+         | join('\n') }}
+      Bitte 'iso_squashfs_path' manuell in group_vars setzen.
+  when:
+    - not patched_iso_stat.stat.exists
+    - iso_squashfs_path == ''
+
+- name: Gefundenen squashfs-Pfad anzeigen
+  ansible.builtin.debug:
+    msg: "squashfs-Container im ISO: {{ iso_squashfs_path }}"
+  when: not patched_iso_stat.stat.exists
+
+- name: squashfs aus ISO extrahieren
+  ansible.builtin.command: >
+    xorriso -osirrox on
+    -indev "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
+    -extract "{{ iso_squashfs_path }}" /tmp/blissos_patch_workdir/system.sfs
   args:
-    creates: /tmp/blissos_patch_workdir/build.prop
+    creates: /tmp/blissos_patch_workdir/system.sfs
+  when: not patched_iso_stat.stat.exists
+
+- name: squashfs entpacken
+  ansible.builtin.command:
+    cmd: unsquashfs -d /tmp/blissos_patch_workdir/squashfs-root /tmp/blissos_patch_workdir/system.sfs
+    creates: /tmp/blissos_patch_workdir/squashfs-root
+  when: not patched_iso_stat.stat.exists
+
+- name: build.prop im entpackten squashfs suchen
+  ansible.builtin.find:
+    paths: /tmp/blissos_patch_workdir/squashfs-root
+    patterns: 'build.prop'
+    recurse: true
+  register: buildprop_find
   when: not patched_iso_stat.stat.exists
 
 - name: Abbrechen wenn build.prop nicht gefunden
-  ansible.builtin.stat:
-    path: /tmp/blissos_patch_workdir/build.prop
-  register: buildprop_stat
-  when: not patched_iso_stat.stat.exists
-
-- name: Fehler wenn build.prop im ISO fehlt
   ansible.builtin.fail:
     msg: >
-      build.prop wurde nicht in /system/build.prop des ISO gefunden.
-      Bitte den ISO-Pfad und die Bliss-OS-Version prüfen.
+      build.prop wurde im squashfs nicht gefunden.
+      Durchsuchtes Verzeichnis: /tmp/blissos_patch_workdir/squashfs-root
   when:
     - not patched_iso_stat.stat.exists
-    - not buildprop_stat.stat.exists
+    - buildprop_find.matched == 0
+
+- name: Pfad der build.prop als Fact setzen
+  ansible.builtin.set_fact:
+    buildprop_path: "{{ buildprop_find.files[0].path }}"
+  when:
+    - not patched_iso_stat.stat.exists
+    - buildprop_find.matched > 0
+
+- name: Gefundenen build.prop-Pfad anzeigen
+  ansible.builtin.debug:
+    msg: "build.prop gefunden: {{ buildprop_path }}"
+  when: not patched_iso_stat.stat.exists
 
 - name: Pixel-1-Properties in build.prop patchen
   ansible.builtin.lineinfile:
-    path: /tmp/blissos_patch_workdir/build.prop
+    path: "{{ buildprop_path }}"
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
     state: present
   loop:
-    - { key: "ro.product.brand",          value: "{{ pixel1_product_brand }}" }
-    - { key: "ro.product.device",         value: "{{ pixel1_product_device }}" }
-    - { key: "ro.product.manufacturer",   value: "{{ pixel1_product_manufacturer }}" }
-    - { key: "ro.product.model",          value: "{{ pixel1_product_model }}" }
-    - { key: "ro.product.name",           value: "{{ pixel1_product_name }}" }
-    - { key: "ro.build.fingerprint",      value: "{{ pixel1_build_fingerprint }}" }
-    - { key: "ro.build.product",          value: "{{ pixel1_build_product }}" }
-    - { key: "ro.build.description",      value: "{{ pixel1_build_description }}" }
+    - { key: "ro.product.brand",               value: "{{ pixel1_product_brand }}" }
+    - { key: "ro.product.device",              value: "{{ pixel1_product_device }}" }
+    - { key: "ro.product.manufacturer",        value: "{{ pixel1_product_manufacturer }}" }
+    - { key: "ro.product.model",               value: "{{ pixel1_product_model }}" }
+    - { key: "ro.product.name",                value: "{{ pixel1_product_name }}" }
+    - { key: "ro.build.fingerprint",           value: "{{ pixel1_build_fingerprint }}" }
+    - { key: "ro.build.product",               value: "{{ pixel1_build_product }}" }
+    - { key: "ro.build.description",           value: "{{ pixel1_build_description }}" }
     - { key: "ro.bootimage.build.fingerprint", value: "{{ pixel1_build_fingerprint }}" }
     - { key: "ro.system.build.fingerprint",    value: "{{ pixel1_build_fingerprint }}" }
     - { key: "ro.vendor.build.fingerprint",    value: "{{ pixel1_build_fingerprint }}" }
   when: not patched_iso_stat.stat.exists
 
-- name: Netzwerk-Properties in build.prop patchen (static)
+- name: Netzwerk-Properties patchen (static)
   ansible.builtin.lineinfile:
-    path: /tmp/blissos_patch_workdir/build.prop
+    path: "{{ buildprop_path }}"
     regexp: "^{{ item.key }}="
     line: "{{ item.key }}={{ item.value }}"
     state: present
@@ -81,22 +149,31 @@
     - not patched_iso_stat.stat.exists
     - vm_network_mode == 'static'
 
-- name: Netzwerk-Properties in build.prop patchen (dhcp)
+- name: Netzwerk-Properties patchen (dhcp)
   ansible.builtin.lineinfile:
-    path: /tmp/blissos_patch_workdir/build.prop
-    regexp: "^dhcp.interface="
+    path: "{{ buildprop_path }}"
+    regexp: "^dhcp\.interface="
     line: "dhcp.interface=eth0"
     state: present
   when:
     - not patched_iso_stat.stat.exists
     - vm_network_mode == 'dhcp'
 
-- name: Gepatchte build.prop in neues ISO schreiben (xorriso)
+- name: Gepatchtes squashfs neu bauen
+  ansible.builtin.command: >
+    mksquashfs /tmp/blissos_patch_workdir/squashfs-root
+    /tmp/blissos_patch_workdir/system_patched.sfs
+    -comp lz4 -noappend
+  args:
+    creates: /tmp/blissos_patch_workdir/system_patched.sfs
+  when: not patched_iso_stat.stat.exists
+
+- name: Gepatchtes squashfs in neues ISO einbetten (xorriso)
   ansible.builtin.command: >
     xorriso
     -indev "{{ vm_iso_storage_path }}/{{ blissos_iso_filename }}"
     -outdev "{{ vm_iso_storage_path }}/{{ blissos_iso_patched_filename }}"
-    -map /tmp/blissos_patch_workdir/build.prop /system/build.prop
+    -map /tmp/blissos_patch_workdir/system_patched.sfs "{{ iso_squashfs_path }}"
     -boot_image any replay
     -commit
   register: xorriso_result
@@ -105,7 +182,7 @@
 
 - name: xorriso Ausgabe anzeigen
   ansible.builtin.debug:
-    msg: "{{ xorriso_result.stdout_lines | default(['(kein Output)']) }}"
+    msg: "{{ xorriso_result.stderr_lines | default([]) }}"
   when: not patched_iso_stat.stat.exists
 
 - name: Arbeitsverzeichnis aufräumen
