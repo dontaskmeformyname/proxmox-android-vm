@@ -11,9 +11,6 @@
 - name: ISO-Existenz prüfen
   ansible.builtin.import_tasks: verify_iso.yml
 
-- name: ISO mit Pixel-1-Identität patchen
-  ansible.builtin.import_tasks: patch_iso.yml
-
 - name: VM erstellen
   ansible.builtin.import_tasks: create_vm.yml
 
